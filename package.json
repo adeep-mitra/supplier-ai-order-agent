@@ -7,13 +7,24 @@
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"test": "vitest",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types",
+		"db:migrate": "tsx migrate.ts",
+		"db:generate": "drizzle-kit generate:pg"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.7.5",
 		"@cloudflare/workers-types": "^4.20250321.0",
+		"dotenv": "^16.4.7",
+		"drizzle-kit": "^0.30.6",
+		"postgres": "^3.4.5",
+		"tsx": "^4.19.3",
 		"typescript": "^5.5.2",
 		"vitest": "~3.0.7",
 		"wrangler": "^4.5.0"
+	},
+	"dependencies": {
+		"@neondatabase/serverless": "^1.0.0",
+		"drizzle-orm": "^0.41.0",
+		"hono": "^4.7.5"
 	}
 }
