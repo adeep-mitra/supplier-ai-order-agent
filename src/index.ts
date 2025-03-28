@@ -22,7 +22,7 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.get('/', (c) => {
   return c.json({
-    message: 'Hello World!',
+    message: 'Hello World Squared!',
   });
 });
 
