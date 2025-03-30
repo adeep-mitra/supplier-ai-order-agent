@@ -28,6 +28,9 @@ export const users = pgTable('users', {
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   loggedInLast: timestamp('logged_in_last'),
+  gmailAccessToken: text('gmail_access_token'),
+  gmailRefreshToken: text('gmail_refresh_token'),
+  gmailTokenExpiry: timestamp('gmail_token_expiry'),
 });
 export type User = InferSelectModel<typeof users>;
 
@@ -124,3 +127,15 @@ export const parLevelItemsRelations = relations(parLevelItems, ({ one }) => ({
 export const parLevelsRelations = relations(parLevels, ({ many }) => ({
   parLevelItems: many(parLevelItems),
 }));
+
+export const gmailTokens = pgTable('gmail_tokens', {
+  id: serial('id').primaryKey(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  scope: text('scope'),
+  tokenType: text('token_type'),
+  expiryDate: timestamp('expiry_date'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+

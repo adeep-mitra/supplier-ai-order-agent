@@ -3,16 +3,22 @@ import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { eq, ilike, and } from 'drizzle-orm';
-import { orders, orderItems, parLevels, parLevelItems } from './db/schema';
+import { orders, orderItems, parLevels, parLevelItems, gmailTokens } from './db/schema';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from './db/schema';
+import { google } from 'googleapis';
+import { gmailRoutes } from './routes/gmail'; // adjust path if needed
 
 // Import the AI logic from the new file
 import { parseOrderTextWithOpenAI } from './aiOrder';
 
+
 export type Env = {
   DATABASE_URL: string;
   OPENAI_KEY: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  GOOGLE_REDIRECT_URI: string;
 };
 
 type Variables = {
@@ -135,4 +141,59 @@ app.post('/ai-order', async (c) => {
   }
 });
 
+// Gmail authentication route
+// Register Gmail auth routes
+app.route('/', gmailRoutes);
+
+// Then define the callback route separately
+app.get('/auth/gmail/callback', async (c) => {
+  const code = c.req.query('code');
+  if (!code) return c.json({ error: 'Missing code' }, 400);
+
+  const clientId = c.env.GOOGLE_CLIENT_ID;
+  const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
+  const redirectUri = c.env.GOOGLE_REDIRECT_URI;
+
+  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+
+  try {
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+
+    const idInfo = await oauth2Client.getTokenInfo(tokens.access_token!);
+    const email = idInfo.email;
+
+    if (!email) return c.json({ error: 'Unable to get user email' }, 500);
+
+    const db = c.get('db');
+    const user = await db.query.users.findFirst({
+      where: eq(schema.users.email, email),
+    });
+
+    if (!user) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+
+    await db.insert(gmailTokens).values({
+      userId: user.id,
+      accessToken: tokens.access_token ?? '',
+      refreshToken: tokens.refresh_token ?? '',
+      scope: tokens.scope ?? '',
+      tokenType: tokens.token_type ?? '',
+      expiryDate: tokens.expiry_date
+        ? new Date(tokens.expiry_date)
+        : undefined,
+    });
+
+    return c.json({ success: true, message: 'Gmail connected' });
+  } catch (err) {
+    console.error('[Gmail Auth Error]', err);
+    return c.json({ error: 'Failed to authenticate Gmail' }, 500);
+  }
+});
+
+
+app.route('/', gmailRoutes);
+
 export default app;
+
