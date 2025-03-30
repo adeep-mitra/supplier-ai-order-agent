@@ -1,5 +1,7 @@
 import { pgTable, serial, text, varchar, integer, timestamp, boolean, numeric, uuid, pgEnum } from 'drizzle-orm/pg-core';
 import { InferSelectModel, sql } from 'drizzle-orm';
+import { relations } from 'drizzle-orm'; // <-- add this import
+
 
 // Enums
 export const OrderType = pgEnum('order_type', ['DRAFT', 'PENDING', 'DELETED', 'ACTIVE', 'ARCHIVED']);
@@ -103,3 +105,22 @@ export const partnerships = pgTable('partnerships', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 export type Partnership = InferSelectModel<typeof partnerships>;
+
+// Add relations for par_level_items
+export const parLevelItemsRelations = relations(parLevelItems, ({ one }) => ({
+  // This line tells Drizzle that parLevelItems.itemId references items.id
+  item: one(items, {
+    fields: [parLevelItems.itemId],
+    references: [items.id],
+  }),
+  // This line tells Drizzle that parLevelItems.parLevelId references parLevels.id
+  parLevel: one(parLevels, {
+    fields: [parLevelItems.parLevelId],
+    references: [parLevels.id],
+  }),
+}));
+
+// If you want to do something like parLevelsRelations -> parLevelItems, do:
+export const parLevelsRelations = relations(parLevels, ({ many }) => ({
+  parLevelItems: many(parLevelItems),
+}));
