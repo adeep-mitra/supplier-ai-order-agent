@@ -1,5 +1,7 @@
 import { pgTable, serial, text, varchar, integer, timestamp, boolean, numeric, uuid, pgEnum } from 'drizzle-orm/pg-core';
 import { InferSelectModel, sql } from 'drizzle-orm';
+import { relations } from 'drizzle-orm'; // <-- add this import
+
 
 // Enums
 export const OrderType = pgEnum('order_type', ['DRAFT', 'PENDING', 'DELETED', 'ACTIVE', 'ARCHIVED']);
@@ -26,6 +28,9 @@ export const users = pgTable('users', {
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   loggedInLast: timestamp('logged_in_last'),
+  gmailAccessToken: text('gmail_access_token'),
+  gmailRefreshToken: text('gmail_refresh_token'),
+  gmailTokenExpiry: timestamp('gmail_token_expiry'),
 });
 export type User = InferSelectModel<typeof users>;
 
@@ -103,3 +108,34 @@ export const partnerships = pgTable('partnerships', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 export type Partnership = InferSelectModel<typeof partnerships>;
+
+// Add relations for par_level_items
+export const parLevelItemsRelations = relations(parLevelItems, ({ one }) => ({
+  // This line tells Drizzle that parLevelItems.itemId references items.id
+  item: one(items, {
+    fields: [parLevelItems.itemId],
+    references: [items.id],
+  }),
+  // This line tells Drizzle that parLevelItems.parLevelId references parLevels.id
+  parLevel: one(parLevels, {
+    fields: [parLevelItems.parLevelId],
+    references: [parLevels.id],
+  }),
+}));
+
+// If you want to do something like parLevelsRelations -> parLevelItems, do:
+export const parLevelsRelations = relations(parLevels, ({ many }) => ({
+  parLevelItems: many(parLevelItems),
+}));
+
+export const gmailTokens = pgTable('gmail_tokens', {
+  id: serial('id').primaryKey(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  scope: text('scope'),
+  tokenType: text('token_type'),
+  expiryDate: timestamp('expiry_date'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+

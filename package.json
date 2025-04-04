@@ -25,6 +25,7 @@
 	"dependencies": {
 		"@neondatabase/serverless": "^1.0.0",
 		"drizzle-orm": "^0.41.0",
+		"googleapis": "^148.0.0",
 		"hono": "^4.7.5"
 	}
 }
