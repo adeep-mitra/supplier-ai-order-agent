@@ -37,7 +37,36 @@ processGmailRoute.get('/gmail/process', async (c) => {
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-  const { data } = await gmail.users.messages.list({ userId: 'me', maxResults: 5 });
+  // Get or create the processed-by-agent label
+  let processedLabelId: string;
+  try {
+    const labelsRes = await gmail.users.labels.list({ userId: 'me' });
+    const processedLabel = labelsRes.data.labels?.find(l => l.name === 'processed-by-agent');
+    
+    if (!processedLabel) {
+      const createRes = await gmail.users.labels.create({
+        userId: 'me',
+        requestBody: {
+          name: 'processed-by-agent',
+          labelListVisibility: 'labelShow',
+          messageListVisibility: 'show',
+        },
+      });
+      processedLabelId = createRes.data.id!;
+    } else {
+      processedLabelId = processedLabel.id!;
+    }
+  } catch (err) {
+    console.error('Failed to get/create processed label:', err);
+    return c.json({ error: 'Failed to setup Gmail labels' }, 500);
+  }
+
+  // Fetch unprocessed emails
+  const { data } = await gmail.users.messages.list({
+    userId: 'me',
+    maxResults: 5,
+    q: `-label:${processedLabelId}`,
+  });
   const messages = data.messages ?? [];
 
   const results = [];
@@ -99,6 +128,19 @@ processGmailRoute.get('/gmail/process', async (c) => {
         itemId: foundItem.id,
         quantity: item.quantity,
       });
+    }
+
+    // Mark email as processed
+    try {
+      await gmail.users.messages.modify({
+        userId: 'me',
+        id: msg.id!,
+        requestBody: {
+          addLabelIds: [processedLabelId],
+        },
+      });
+    } catch (err) {
+      console.error('Failed to mark email as processed:', err);
     }
 
     results.push({

@@ -24,7 +24,10 @@ gmailRoutes.get('/auth/gmail', async (c) => {
   const scopes = [
     'https://www.googleapis.com/auth/gmail.readonly',
     'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/gmail.modify',
+    'https://www.googleapis.com/auth/gmail.labels',
   ];
+  
 
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',

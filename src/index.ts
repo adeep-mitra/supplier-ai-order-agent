@@ -105,7 +105,7 @@ app.post('/ai-order', async (c) => {
       .returning({ id: orders.id });
 
     // 5. Match and insert combined items
-    const insertedItems = [];
+    const insertedItems: Array<{ name: string; quantity: number }> = [];
     for (const ci of combinedItems) {
       const foundItem = await db.query.items.findFirst({
         where: and(
@@ -124,7 +124,7 @@ app.post('/ai-order', async (c) => {
         quantity: ci.quantity,
       });
 
-      insertedItems.push({ name: foundItem.name, quantity: ci.quantity });
+      insertedItems.push({ name: foundItem.name ?? '(unknown)', quantity: ci.quantity });
     }
 
     return c.json({
@@ -171,16 +171,12 @@ app.get('/auth/gmail/callback', async (c) => {
       return c.json({ error: 'User not found' }, 404);
     }
 
-    await db.insert(gmailTokens).values({
-      userId: user.id,
-      accessToken: tokens.access_token ?? '',
-      refreshToken: tokens.refresh_token ?? '',
-      scope: tokens.scope ?? '',
-      tokenType: tokens.token_type ?? '',
-      expiryDate: tokens.expiry_date
-        ? new Date(tokens.expiry_date)
-        : undefined,
-    });
+    // ✅ Save tokens directly into `users` table (snake_case fields)
+    await db.update(schema.users).set({
+      gmailAccessToken: tokens.access_token ?? null,
+      gmailRefreshToken: tokens.refresh_token ?? null,
+      gmailTokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+    }).where(eq(schema.users.id, user.id));    
 
     return c.json({ success: true, message: 'Gmail connected' });
   } catch (err) {
@@ -188,6 +184,7 @@ app.get('/auth/gmail/callback', async (c) => {
     return c.json({ error: 'Failed to authenticate Gmail' }, 500);
   }
 });
+
 
 
 app.route('/', gmailRoutes);
