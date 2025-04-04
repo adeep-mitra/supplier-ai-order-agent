@@ -9,8 +9,9 @@ import * as schema from './db/schema';
 import { google } from 'googleapis';
 import { gmailRoutes } from './routes/gmail'; // adjust path if needed
 import { fetchGmailRoute } from './routes/gmail/fetch'; // adjust path as needed
-import { processGmailRoute } from './routes/gmail/process'; // ✅ correct import path
+import { processGmailRoute, handler } from './routes/gmail/process'; // ✅ correct import path
 import { parseOrderTextWithOpenAI } from './aiOrder';
+import type { ScheduledEvent } from '@cloudflare/workers-types';
 
 export type Env = {
   DATABASE_URL: string;
@@ -185,7 +186,22 @@ app.get('/auth/gmail/callback', async (c) => {
   }
 });
 
+// Handle scheduled event for cron
+export async function scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+  const db = drizzle(postgres(env.DATABASE_URL, { ssl: 'require' }), { schema });
+  
+  // Create a context object that matches the handler's expected type
+  const context = {
+    env,
+    get: (key: 'db') => db,
+    json: (body: any, status = 200) => new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  };
 
+  return await handler(context as any);
+}
 
 app.route('/', gmailRoutes);
 app.route('/', fetchGmailRoute);

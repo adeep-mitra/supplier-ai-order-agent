@@ -8,14 +8,13 @@ import type { Env } from '../../index';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../db/schema';
 import { parseOrderTextWithOpenAI } from '../../aiOrder';
+import type { Context } from 'hono';
 
 type Variables = {
   db: PostgresJsDatabase<typeof schema>;
 };
 
-export const processGmailRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
-
-processGmailRoute.get('/gmail/process', async (c) => {
+export const handler = async (c: Context<{ Bindings: Env; Variables: Variables }>) => {
   const db = c.get('db');
 
   const supplierEmail = 'adeep@polinate.com.au'; // TODO: Replace with auth
@@ -61,12 +60,13 @@ processGmailRoute.get('/gmail/process', async (c) => {
     return c.json({ error: 'Failed to setup Gmail labels' }, 500);
   }
 
-  // Fetch unprocessed emails
+  // Fetch unprocessed emails (skip any with the processed-by-agent label)
   const { data } = await gmail.users.messages.list({
     userId: 'me',
     maxResults: 5,
-    q: `-label:${processedLabelId}`,
+    q: '-label:processed-by-agent',
   });
+
   const messages = data.messages ?? [];
 
   const results = [];
@@ -130,7 +130,7 @@ processGmailRoute.get('/gmail/process', async (c) => {
       });
     }
 
-    // Mark email as processed
+    // Mark email as processed by adding the label
     try {
       await gmail.users.messages.modify({
         userId: 'me',
@@ -153,4 +153,7 @@ processGmailRoute.get('/gmail/process', async (c) => {
   }
 
   return c.json({ processed: results });
-});
+};
+
+export const processGmailRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
+processGmailRoute.get('/gmail/process', handler);
