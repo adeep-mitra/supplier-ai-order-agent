@@ -207,5 +207,7 @@ app.route('/', gmailRoutes);
 app.route('/', fetchGmailRoute);
 app.route('/', processGmailRoute);
 
-export default app;
-
+export default {
+  fetch: app.fetch,
+  scheduled,
+};
