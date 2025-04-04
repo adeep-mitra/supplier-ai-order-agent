@@ -14,6 +14,14 @@ type Variables = {
   db: PostgresJsDatabase<typeof schema>;
 };
 
+// Helper function to set default delivery date/time
+function getDefaultDeliveryDateTime(): Date {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(12, 0, 0, 0); // Set to 12:00 PM
+  return tomorrow;
+}
+
 export const handler = async (c: Context<{ Bindings: Env; Variables: Variables }>) => {
   const db = c.get('db');
 
@@ -40,15 +48,19 @@ export const handler = async (c: Context<{ Bindings: Env; Variables: Variables }
   let processedLabelId: string;
   try {
     const labelsRes = await gmail.users.labels.list({ userId: 'me' });
-    const processedLabel = labelsRes.data.labels?.find(l => l.name === 'processed-by-agent');
+    const processedLabel = labelsRes.data.labels?.find(l => l.name === 'processed-by-polinate');
     
     if (!processedLabel) {
       const createRes = await gmail.users.labels.create({
         userId: 'me',
         requestBody: {
-          name: 'processed-by-agent',
+          name: 'processed-by-polinate',
           labelListVisibility: 'labelShow',
           messageListVisibility: 'show',
+          color: {
+            textColor: '#000000',
+            backgroundColor: '#ff7537' 
+          }
         },
       });
       processedLabelId = createRes.data.id!;
@@ -64,7 +76,7 @@ export const handler = async (c: Context<{ Bindings: Env; Variables: Variables }
   const { data } = await gmail.users.messages.list({
     userId: 'me',
     maxResults: 5,
-    q: '-label:processed-by-agent',
+    q: '-label:processed-by-polinate',
   });
 
   const messages = data.messages ?? [];
@@ -103,12 +115,18 @@ export const handler = async (c: Context<{ Bindings: Env; Variables: Variables }
       continue;
     }
 
+    // Set default delivery date/time if not specified
+    const expectedDeliveryDateTime = parsed.expectedDeliveryDateTime 
+      ? new Date(parsed.expectedDeliveryDateTime)
+      : getDefaultDeliveryDateTime();
+
     const [newOrder] = await db.insert(orders).values({
       restaurantId: partnership.restaurantId,
       supplierId: supplier.id,
       type: 'DRAFT',
       status: 'NOT_APPLICABLE',
       notes: snippet,
+      expectedDeliveryDateTime,
     }).returning({ id: orders.id });
 
     for (const item of parsed.items) {

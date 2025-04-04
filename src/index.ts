@@ -65,6 +65,11 @@ app.post('/ai-order', async (c) => {
       parsed.useParLevel = false;
     }
 
+    // Set default delivery date/time if not specified
+    const expectedDeliveryDateTime = parsed.expectedDeliveryDateTime 
+      ? new Date(parsed.expectedDeliveryDateTime)
+      : new Date(new Date().setDate(new Date().getDate() + 1)).setHours(12, 0, 0, 0);
+
     // 2. If AI says useParLevel, fetch par-level items
     let parLevelItemsArr: Array<{ name: string; quantity: number }> = [];
     if (parsed.useParLevel) {
@@ -102,6 +107,7 @@ app.post('/ai-order', async (c) => {
         type: 'DRAFT',
         status: 'NOT_APPLICABLE',
         notes: orderText,
+        expectedDeliveryDateTime: new Date(expectedDeliveryDateTime),
       })
       .returning({ id: orders.id });
 
