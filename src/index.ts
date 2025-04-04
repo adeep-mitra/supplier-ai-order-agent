@@ -8,10 +8,9 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from './db/schema';
 import { google } from 'googleapis';
 import { gmailRoutes } from './routes/gmail'; // adjust path if needed
-
-// Import the AI logic from the new file
+import { fetchGmailRoute } from './routes/gmail/fetch'; // adjust path as needed
+import { processGmailRoute } from './routes/gmail/process'; // ✅ correct import path
 import { parseOrderTextWithOpenAI } from './aiOrder';
-
 
 export type Env = {
   DATABASE_URL: string;
@@ -142,8 +141,6 @@ app.post('/ai-order', async (c) => {
 });
 
 // Gmail authentication route
-// Register Gmail auth routes
-app.route('/', gmailRoutes);
 
 // Then define the callback route separately
 app.get('/auth/gmail/callback', async (c) => {
@@ -194,6 +191,8 @@ app.get('/auth/gmail/callback', async (c) => {
 
 
 app.route('/', gmailRoutes);
+app.route('/', fetchGmailRoute);
+app.route('/', processGmailRoute);
 
 export default app;
 

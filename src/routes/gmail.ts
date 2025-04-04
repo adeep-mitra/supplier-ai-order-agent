@@ -51,9 +51,13 @@ gmailRoutes.get('/auth/gmail/callback', async (c) => {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
+    console.log('[Tokens received]', tokens);
+
     const oauth2 = google.oauth2({ auth: oauth2Client, version: 'v2' });
     const { data } = await oauth2.userinfo.get();
     const email = data.email;
+
+    console.log('[User Email]', email);
 
     if (!email) return c.text('Failed to fetch user email', 500);
 
@@ -65,6 +69,7 @@ gmailRoutes.get('/auth/gmail/callback', async (c) => {
     });
 
     if (!existing) {
+      console.log('[User Not Found]', email);
       return c.text(`No user found with email ${email}`, 404);
     }
 
@@ -73,6 +78,8 @@ gmailRoutes.get('/auth/gmail/callback', async (c) => {
       gmailRefreshToken: tokens.refresh_token ?? null,
       gmailTokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
     }).where(eq(users.id, existing.id));
+
+    console.log('[Gmail Connected]', email);
 
     return c.text(`Successfully connected Gmail for ${email}`);
   } catch (err) {
